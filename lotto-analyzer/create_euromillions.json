@@ -1,0 +1,23 @@
+{
+  "name": "EuroMillions",
+  "description": "EuroMillions 5/50 + 2 stars",
+  "rules_json": {
+    "numbers": {
+      "count": 5,
+      "min": 1,
+      "max": 50,
+      "unique": true,
+      "sorted": true
+    },
+    "bonus": {
+      "enabled": true,
+      "min": 1,
+      "max": 12,
+      "count": 2
+    },
+    "calendar": {
+      "expected_frequency": "biweekly",
+      "days": ["TUE", "FRI"]
+    }
+  }
+}

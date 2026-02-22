@@ -1,0 +1,22 @@
+{
+  "name": "Lotto_5_49",
+  "description": "Classic 5/49 lottery with bonus",
+  "rules_json": {
+    "numbers": {
+      "count": 5,
+      "min": 1,
+      "max": 49,
+      "unique": true,
+      "sorted": true
+    },
+    "bonus": {
+      "enabled": true,
+      "min": 1,
+      "max": 10
+    },
+    "calendar": {
+      "expected_frequency": "weekly",
+      "days": ["WED", "SAT"]
+    }
+  }
+}

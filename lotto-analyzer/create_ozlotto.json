@@ -1,0 +1,24 @@
+{
+  "name": "Oz Lotto",
+  "description": "Australian Oz Lotto - 7 numbers from 1-47 + 3 bonus",
+  "rules_json": {
+    "numbers": {
+      "count": 7,
+      "min": 1,
+      "max": 47,
+      "unique": true
+    },
+    "bonus": {
+      "enabled": true,
+      "count": 3,
+      "min": 1,
+      "max": 47,
+      "unique": true
+    },
+    "calendar": {
+      "expected_frequency": "weekly",
+      "days": ["Tuesday"]
+    }
+  },
+  "version": 1
+}
