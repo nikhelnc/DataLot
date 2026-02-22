@@ -71,6 +71,183 @@ docker-compose exec backend python app/db/seed/generate_seed.py --seed 42 --out 
 - Backend API: http://localhost:8000
 - API Docs: http://localhost:8000/docs
 
+## 🐧 Déploiement sur Linux (Production)
+
+### Prérequis
+
+```bash
+# Installer Docker
+curl -fsSL https://get.docker.com -o get-docker.sh
+sudo sh get-docker.sh
+
+# Ajouter l'utilisateur au groupe docker
+sudo usermod -aG docker $USER
+newgrp docker
+
+# Installer Docker Compose
+sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
+sudo chmod +x /usr/local/bin/docker-compose
+
+# Vérifier l'installation
+docker --version
+docker-compose --version
+```
+
+### Déploiement rapide
+
+```bash
+# 1. Cloner le repository
+git clone https://github.com/votre-repo/lotto-analyzer.git
+cd lotto-analyzer
+
+# 2. Créer le fichier .env pour la production
+cat > .env << EOF
+POSTGRES_USER=lotto
+POSTGRES_PASSWORD=$(openssl rand -base64 32)
+POSTGRES_DB=lotto_analyzer
+CORS_ORIGINS=http://localhost:5173,http://votre-domaine.com
+VITE_API_URL=http://localhost:8000
+EOF
+
+# 3. Démarrer les services (utiliser docker-compose.prod.yml pour la production)
+docker-compose -f docker-compose.prod.yml up -d --build
+
+# 4. Vérifier que les conteneurs sont en cours d'exécution
+docker-compose -f docker-compose.prod.yml ps
+
+# 5. Appliquer les migrations de base de données
+docker-compose -f docker-compose.prod.yml exec backend alembic upgrade head
+
+# 6. (Optionnel) Générer des données de test
+docker-compose -f docker-compose.prod.yml exec backend python app/db/seed/generate_seed.py --seed 42 --out /tmp/seed.csv
+```
+
+> **Note**: Utilisez `docker-compose.yml` pour le développement local (avec hot-reload) et `docker-compose.prod.yml` pour la production (build optimisé avec Nginx).
+
+### Configuration avec Nginx (Reverse Proxy)
+
+```bash
+# Installer Nginx
+sudo apt update && sudo apt install -y nginx
+
+# Créer la configuration
+sudo tee /etc/nginx/sites-available/lotto-analyzer << 'EOF'
+server {
+    listen 80;
+    server_name votre-domaine.com;
+
+    # Frontend
+    location / {
+        proxy_pass http://localhost:5173;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    # Backend API
+    location /api/ {
+        rewrite ^/api/(.*) /$1 break;
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # SSE (Server-Sent Events) - timeout plus long
+    location ~ ^/(games|forensics)/.*/(stream|run/stream) {
+        proxy_pass http://localhost:8000;
+        proxy_http_version 1.1;
+        proxy_set_header Connection '';
+        proxy_buffering off;
+        proxy_cache off;
+        proxy_read_timeout 86400s;
+    }
+}
+EOF
+
+# Activer le site
+sudo ln -s /etc/nginx/sites-available/lotto-analyzer /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### Configuration avec SSL (Let's Encrypt)
+
+```bash
+# Installer Certbot
+sudo apt install -y certbot python3-certbot-nginx
+
+# Obtenir un certificat SSL
+sudo certbot --nginx -d votre-domaine.com
+
+# Renouvellement automatique (déjà configuré par défaut)
+sudo systemctl status certbot.timer
+```
+
+### Commandes de gestion
+
+```bash
+# Voir les logs
+docker-compose -f docker-compose.prod.yml logs -f
+
+# Logs d'un service spécifique
+docker-compose -f docker-compose.prod.yml logs -f backend
+
+# Redémarrer les services
+docker-compose -f docker-compose.prod.yml restart
+
+# Arrêter les services
+docker-compose -f docker-compose.prod.yml down
+
+# Arrêter et supprimer les volumes (ATTENTION: perte de données)
+docker-compose -f docker-compose.prod.yml down -v
+
+# Mettre à jour l'application
+git pull
+docker-compose -f docker-compose.prod.yml build
+docker-compose -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.prod.yml exec backend alembic upgrade head
+```
+
+### Sauvegarde de la base de données
+
+```bash
+# Créer une sauvegarde
+docker-compose -f docker-compose.prod.yml exec db pg_dump -U lotto lotto_analyzer > backup_$(date +%Y%m%d_%H%M%S).sql
+
+# Restaurer une sauvegarde
+cat backup.sql | docker-compose -f docker-compose.prod.yml exec -T db psql -U lotto lotto_analyzer
+```
+
+### Systemd Service (Démarrage automatique)
+
+```bash
+# Créer le service systemd
+sudo tee /etc/systemd/system/lotto-analyzer.service << EOF
+[Unit]
+Description=Lotto Analyzer Docker Compose
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/chemin/vers/lotto-analyzer
+ExecStart=/usr/local/bin/docker-compose -f docker-compose.prod.yml up -d
+ExecStop=/usr/local/bin/docker-compose -f docker-compose.prod.yml down
+User=$USER
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Activer le service
+sudo systemctl daemon-reload
+sudo systemctl enable lotto-analyzer
+sudo systemctl start lotto-analyzer
+```
+
 ### Manual Setup
 
 #### Backend

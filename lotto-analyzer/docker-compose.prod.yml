@@ -1,0 +1,52 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: lotto-analyzer-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-lotto}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-lotto123}
+      POSTGRES_DB: ${POSTGRES_DB:-lotto_analyzer}
+    ports:
+      - "15432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-lotto} -d ${POSTGRES_DB:-lotto_analyzer}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lotto-analyzer-backend
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-lotto}:${POSTGRES_PASSWORD:-lotto123}@db:5432/${POSTGRES_DB:-lotto_analyzer}
+      CODE_VERSION: v2.0.0
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    container_name: lotto-analyzer-frontend
+    ports:
+      - "5173:80"
+    environment:
+      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
