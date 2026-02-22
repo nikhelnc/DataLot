@@ -1,17 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Calendar, Plus, X, Trash2 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { gamesApi, drawsApi, Game, DrawCreate } from '../api/client'
-
-interface Draw {
-  id: string
-  game_id: string
-  draw_number: number | null
-  draw_date: string
-  numbers: number[]
-  bonus_numbers: number[]
-  created_at: string
-}
+import { gamesApi, drawsApi, Game, Draw, DrawCreate } from '../api/client'
 
 export default function Draws() {
   const { t } = useTranslation()

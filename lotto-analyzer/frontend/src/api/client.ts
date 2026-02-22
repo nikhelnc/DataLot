@@ -76,7 +76,12 @@ export interface DrawCreate {
 }
 
 export const drawsApi = {
-  list: (params?: any) => apiClient.get<Draw[]>('/draws', { params }),
+  list: (gameIdOrParams?: string | any, params?: any) => {
+    if (typeof gameIdOrParams === 'string') {
+      return apiClient.get<Draw[]>('/draws', { params: { game_id: gameIdOrParams, ...params } })
+    }
+    return apiClient.get<Draw[]>('/draws', { params: gameIdOrParams })
+  },
   get: (id: string) => apiClient.get<Draw>(`/draws/${id}`),
   create: (data: DrawCreate) => apiClient.post<Draw>('/draws', data),
   delete: (id: string) => apiClient.delete(`/draws/${id}`),
